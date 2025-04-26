@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Listening Quiz</title>
+  <style>
+    body { font-family: Arial; text-align: center; margin-top: 30px; }
+    #start-screen, #quiz-screen, #result-screen {
+      display: none;
+    }
+    #start-screen.active, #quiz-screen.active, #result-screen.active {
+      display: block;
+    }
+    button {
+      margin: 10px;
+      padding: 12px 24px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .answer-btn {
+      display: block;
+      width: 300px;
+      margin: 10px auto;
+      transition: 0.3s;
+    }
+    img {
+      max-width: 300px;
+      height: auto;
+      margin-bottom: 20px;
+    }
+    #next-button {
+      display: none;
+      margin-top: 20px;
+      background-color: orange;
+    }
+    #mode-popup {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 20px;
+      display: none;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Popup thông báo -->
+<div id="mode-popup"></div>
+
+<!-- Trang bắt đầu -->
+<div id="start-screen" class="active">
+  <h1>Welcome to Listening Quiz</h1>
+  <button onclick="startQuiz()">Start Quiz</button>
+</div>
+
+<!-- Trang quiz -->
+<div id="quiz-screen">
+  <h2 id="question-number"></h2>
+  <img id="question-image" src="" alt="Question Image">
+  
+  <div id="answer-buttons">
+    <!-- Các nút đáp án sẽ được tạo tự động -->
+  </div>
+
+  <br>
+  <button onclick="playRandom()" style="background-color: lightblue;">🔊 Play Sound</button>
+
+  <br>
+  <button id="next-button" onclick="nextQuestion()">Next Question ➡️</button>
+</div>
+
+<!-- Trang kết quả -->
+<div id="result-screen">
+  <h1>Quiz Completed!</h1>
+  <h2 id="score-text"></h2>
+  <button onclick="restartQuiz()">Play Again</button>
+</div>
+
+<script>
+const startScreen = document.getElementById('start-screen');
+const quizScreen = document.getElementById('quiz-screen');
+const resultScreen = document.getElementById('result-screen');
+const questionNumber = document.getElementById('question-number');
+const questionImage = document.getElementById('question-image');
+const answerButtons = document.getElementById('answer-buttons');
+const nextButton = document.getElementById('next-button');
+const scoreText = document.getElementById('score-text');
+const modePopup = document.getElementById('mode-popup');
+
+let mainAudio = null;
+let noiseAudio = null;
+let audioContext = null;
+let sourceNode = null;
+let distortionNode = null;
+
+let currentQuestionIndex = 0;
+let score = 0;
+
+// Danh sách câu hỏi (mỗi câu có file âm thanh riêng)
+const questions = [
+{
+    image: "cau1.jpg",
+    audio: "Cau1.mp3",
+    answers: ["", "", "", ""],
+    correct: 1
+  },
+  {
+    image: "cau2.jpg",
+    audio: "Cau2.mp3",
+    answers: ["", "", "", ""],
+    correct: 2
+  },
+  {
+    image: "cau3.jpg",
+    audio: "cau3.mp3",
+    answers: ["", "", "", ""],
+    correct: 3
+  },
+  {
+    image: "cau4.jpg",
+    audio: "cau4.mp3",
+    answers: ["", "", "", ""],
+    correct: 0
+  },
+  {
+    image: "cau5.jpg",
+    audio: "cau5.mp3",
+    answers: ["", "", "", ""],
+    correct: 3
+  },
+];
+
+const correctSound = new Audio('correct-156911.mp3'); // âm đúng
+const wrongSound = new Audio('incorrect-293358.mp3');     // âm sai
+
+
+function startQuiz() {
+  startScreen.classList.remove('active');
+  quizScreen.classList.add('active');
+  currentQuestionIndex = 0;
+  score = 0;
+  showQuestion();
+}
+
+function showQuestion() {
+  nextButton.style.display = 'none';
+  const question = questions[currentQuestionIndex];
+  questionNumber.innerText = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
+  questionImage.src = question.image;
+  
+  answerButtons.innerHTML = '';
+
+  // Cập nhật lại mainAudio mỗi câu
+  if (mainAudio) {
+    mainAudio.pause();
+  }
+  mainAudio = new Audio(question.audio);
+
+  question.answers.forEach((answer, index) => {
+    const button = document.createElement('button');
+    button.innerText = `${String.fromCharCode(65 + index)}. ${answer}`;
+    button.className = 'answer-btn';
+    button.onclick = () => selectAnswer(button, index);
+    answerButtons.appendChild(button);
+  });
+}
+
+function selectAnswer(selectedButton, selectedIndex) {
+  const question = questions[currentQuestionIndex];
+  const allButtons = document.querySelectorAll('.answer-btn');
+  
+  allButtons.forEach(btn => btn.disabled = true);
+
+  if (selectedIndex === question.correct) {
+    selectedButton.style.backgroundColor = 'lightgreen';
+    score++;
+    correctSound.play();
+  } else {
+    selectedButton.style.backgroundColor = 'lightcoral';
+    allButtons[question.correct].style.backgroundColor = 'lightgreen';
+    wrongSound.play();
+  }
+
+  nextButton.style.display = 'inline-block';
+}
+
+function nextQuestion() {
+  currentQuestionIndex++;
+  if (currentQuestionIndex < questions.length) {
+    showQuestion();
+  } else {
+    showResult();
+  }
+}
+
+function showResult() {
+  quizScreen.classList.remove('active');
+  resultScreen.classList.add('active');
+  scoreText.innerText = `Your Score: ${score} / ${questions.length}`;
+}
+
+function restartQuiz() {
+  resultScreen.classList.remove('active');
+  startScreen.classList.add('active');
+}
+
+function stopAll() {
+  if (mainAudio) {
+    mainAudio.pause();
+    mainAudio.currentTime = 0;
+  }
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+}
+
+// Phát âm thanh random chế độ
+function playRandom() {
+  stopAll();
+  const modes = ['normal', 'fast', 'noise'];
+  const randomMode = modes[Math.floor(Math.random() * modes.length)];
+
+  if (randomMode === 'normal') {
+    mainAudio.playbackRate = 1.0;
+    mainAudio.play();
+    showPopup('🎧 Normal Mode');
+  } else if (randomMode === 'fast') {
+    mainAudio.playbackRate = 1.5;
+    mainAudio.play();
+    showPopup('⚡ Fast Mode');
+  } else if (randomMode === 'noise') {
+    playWithNoise();
+    showPopup('🌪️ Noisy Mode');
+  }
+}
+
+function playWithNoise() {
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  const track = audioContext.createMediaElementSource(mainAudio);
+
+  distortionNode = audioContext.createWaveShaper();
+  distortionNode.curve = makeDistortionCurve(100); 
+  distortionNode.oversample = '4x';
+
+  track.connect(distortionNode);
+  distortionNode.connect(audioContext.destination);
+
+  mainAudio.playbackRate = 1.0;
+  mainAudio.play();
+}
+
+function makeDistortionCurve(amount) {
+  const n_samples = 44100;
+  const curve = new Float32Array(n_samples);
+  const deg = Math.PI / 180;
+  for (let i = 0; i < n_samples; ++i) {
+    const x = (i * 2) / n_samples - 1;
+    curve[i] = (3 + amount) * x * 20 * deg / (Math.PI + amount * Math.abs(x));
+  }
+  return curve;
+}
+
+function showPopup(message) {
+  modePopup.innerText = message;
+  modePopup.style.display = 'block';
+  setTimeout(() => {
+    modePopup.style.display = 'none';
+  }, 2000);
+}
+</script>
+
+</body>
+</html>
